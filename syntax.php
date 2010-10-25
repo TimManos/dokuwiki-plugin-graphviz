@@ -86,21 +86,38 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
      * @todo latex support?
      */
     function render($format, &$R, $data) {
-        if($format == 'xhtml'){
-            $img = $this->_imgurl($data);
-            $R->doc .= '<img src="'.$img.'" class="media'.$data['align'].'" alt=""';
-            if($data['width'])  $R->doc .= ' width="'.$data['width'].'"';
-            if($data['height']) $R->doc .= ' height="'.$data['height'].'"';
-            if($data['align'] == 'right') $ret .= ' align="right"';
-            if($data['align'] == 'left')  $ret .= ' align="left"';
-            $R->doc .= '/>';
-            return true;
-        }elseif($format == 'odt'){
-            $src = $this->_imgfile($data);
-            $R->_odtAddImage($src,$data['width'],$data['height'],$data['align']);
-            return true;
-        }
-        return false;
+      #$R->doc .= '<pre>'.print_r($data, true).'</pre>';
+      if($format == 'xhtml'){
+          if (preg_match('/url/i', $data['data'])) {
+            $mapID="dokuwiki_image_map".rand();
+            $temp = tempnam($conf['tmpdir'],'graphviz_');
+            io_saveFile($temp,$data['data']);
+            $cmd  =  $this->getConf('path');
+            $cmd .= ' -Tcmapx '.escapeshellarg($temp);
+            $map = shell_exec($cmd);
+            preg_match('/<map[[:blank:]]id=["\']([[:alnum:]_-])["\']/', $map, $matches);
+            #$R->doc .= '<pre>'.print_r($matches, true).'</pre>';
+            $mapID=trim($matches[1]);
+            $R->doc .="\n$map";
+            @unlink($temp);
+          }
+          $img = $this->_imgurl($data);
+          $R->doc .= '<img src="'.$img.'" class="media'.$data['align'].'" alt=""';
+          if($data['width'])  $R->doc .= ' width="'.$data['width'].'"';
+          if($data['height']) $R->doc .= ' height="'.$data['height'].'"';
+          if($data['align'] == 'right') $ret .= ' align="right"';
+          if($data['align'] == 'left')  $ret .= ' align="left"';
+          if(isset($mapID)) $R->doc .= " usemap=\"#$mapID\"";
+          $R->doc .= '/>';
+
+          return true;
+      }elseif($format == 'odt'){
+          $src = $this->_imgfile($data);
+          $R->_odtAddImage($src,$data['width'],$data['height'],$data['align']);
+          $R->doc .print_r($data, true);
+          return true;
+      }
+      return false;
     }
 
     /**
