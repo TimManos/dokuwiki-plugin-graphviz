@@ -1,3 +1,3 @@
 <?php
 
-$conf['path'] = '';
+$conf['path'] = '/usr/bin/dot';

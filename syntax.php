@@ -5,6 +5,7 @@
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Carl-Christian Salvesen <calle@ioslo.net>
  * @author     Andreas Gohr <andi@splitbrain.org>
+ * @author     Tim Manos <tim.manos@web.de>
  */
 
 if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
@@ -86,36 +87,47 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
      * @todo latex support?
      */
     function render($format, &$R, $data) {
-      #$R->doc .= '<pre>'.print_r($data, true).'</pre>';
-      if($format == 'xhtml'){
-          if (preg_match('/url/i', $data['data'])) {
-            $mapID="dokuwiki_image_map".rand();
-            $temp = tempnam($conf['tmpdir'],'graphviz_');
-            io_saveFile($temp,$data['data']);
-            $cmd  =  $this->getConf('path');
-            $cmd .= ' -Tcmapx '.escapeshellarg($temp);
-            $map = shell_exec($cmd);
-            preg_match('/<map[[:blank:]]id=["\']([[:alnum:]_-])["\']/', $map, $matches);
-            #$R->doc .= '<pre>'.print_r($matches, true).'</pre>';
-            $mapID=trim($matches[1]);
-            $R->doc .="\n$map";
-            @unlink($temp);
-          }
-          $img = $this->_imgurl($data);
-          $R->doc .= '<img src="'.$img.'" class="media'.$data['align'].'" alt=""';
-          if($data['width'])  $R->doc .= ' width="'.$data['width'].'"';
-          if($data['height']) $R->doc .= ' height="'.$data['height'].'"';
-          if($data['align'] == 'right') $ret .= ' align="right"';
-          if($data['align'] == 'left')  $ret .= ' align="left"';
-          if(isset($mapID)) $R->doc .= " usemap=\"#$mapID\"";
-          $R->doc .= '/>';
+//       $R->doc .= '<pre>'.print_r($data, true).'</pre>';
+//       $R->doc .= '<pre>'.md5($data['data']).'</pre>';
+//       $R->doc .= '<pre>'.join('x',array_values($data)).'</pre>';
+//       $R->doc .= '<pre>'.getcachename(join('x',array_values($data)),'graphviz.png').'</pre>';
+      $imageType = 'png'; $imageExt = '.'.$imageType;
+      $file_base_name = getcachename(join('x',array_values($data)),'_graphviz');
+      $mapID=md5($data['data']);
 
-          return true;
-      }elseif($format == 'odt'){
-          $src = $this->_imgfile($data);
-          $R->_odtAddImage($src,$data['width'],$data['height'],$data['align']);
-          $R->doc .print_r($data, true);
-          return true;
+      #$R->doc .= '<pre>'.$file_base_name.'</pre>';
+      #$this->dump_array(php_uname());
+      if (!(file_exists($fname.$imageExt) or file_exists($file_base_name.'.map'))) {
+        io_saveFile($file_base_name.'.dot',$data['data']);
+        $dotExe=$this->getConf('path');
+        $cmdDoMap = $dotExe.' -Tcmapx '.escapeshellarg($file_base_name.'.dot').' '.' -o'.escapeshellarg($file_base_name.'.map');
+        $cmdDoImg = $dotExe.' -T'.$imageType.' '.escapeshellarg($file_base_name.'.dot').' -o'.escapeshellarg($file_base_name.$imageExt);
+        #$this->dump_array($cmdDoMap);
+        #$this->dump_array($cmdDoImg);
+        $ret = `{$cmdDoMap}`;
+        $ret = `{$cmdDoImg}`;
+      }
+
+      if ($format == 'xhtml') {
+        // display the image tag
+        $src=dirname($_SERVER['PHP_SELF']).substr($file_base_name.$imageExt, strpos($file_base_name.$imageExt, '/data'));
+        $R->doc .= '<img src="'.$src.'" class="media'.$data['align'].'" alt=""';
+        if($data['width'])  $R->doc .= ' width="'.$data['width'].'"';
+        if($data['height']) $R->doc .= ' height="'.$data['height'].'"';
+        if($data['align'] == 'right') $ret .= ' align="right"';
+        if($data['align'] == 'left')  $ret .= ' align="left"';
+        $R->doc .= " usemap=\"#$mapID\"";
+        $R->doc .= '/>';
+
+        // display the map tag
+        @$map = file_get_contents($file_base_name.'.map');
+        $map=preg_replace("#<ma(.*)>#"," ",$map);
+        $map=str_replace("</map>","",$map);
+        $R->doc .= "<map name=\"$mapID\">{$map}</map>";
+        return true;
+      } elseif($format == 'odt') {
+        $R->_odtAddImage($fname.$imageExt,$data['width'],$data['height'],$data['align']);
+        return true;
       }
       return false;
     }
@@ -125,7 +137,8 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
      * the Google Chart API
      */
     function _imgurl($data){
-        if($this->getConf('path')){
+        #if($this->getConf('path')){
+        if(1 == 2){
             // run graphviz on our own server
             $img = DOKU_BASE.'lib/plugins/graphviz/img.php?'.buildURLparams($data,'&');
         }else{
@@ -140,61 +153,17 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
 
             $img = 'http://chart.apis.google.com/chart?'.buildURLparams($pass,'&');
             $img = ml($img,array('w'=>$data['width'],'h'=>$data['height']));
+            #$this->echox($img);
         }
         return $img;
     }
 
-    /**
-     * Return path to created graphviz graph (local only)
-     */
-    function _imgfile($data){
-        $w = (int) $data['width'];
-        $h = (int) $data['height'];
-        unset($data['width']);
-        unset($data['height']);
-        unset($data['align']);
+  function echox($msg) {
+    $logFile="/tmp/dokuwiki_graphviz";
+    error_log(strftime('%Y-%m-%d %H:%M%S')." ".$msg, 3, $logFile);
+  }
 
-        $cache = getcachename(join('x',array_values($data)),'graphviz.png');
-
-        // create the file if needed
-        if(!file_exists($cache)){
-            $this->_run($data,$cache);
-            clearstatcache();
-        }
-
-        // resized version
-        if($w) $cache = media_resize_image($cache,'png',$w,$h);
-
-        return $cache;
-    }
-
-    /**
-     * Run the graphviz program
-     */
-    function _run($data,$cache) {
-        global $conf;
-
-        $temp = tempnam($conf['tmpdir'],'graphviz_');
-        io_saveFile($temp,$data['data']);
-
-        $cmd  = $this->getConf('path');
-        $cmd .= ' -Tpng';
-        $cmd .= ' -K'.$data['layout'];
-        $cmd .= ' -o'.escapeshellarg($cache); //output
-        $cmd .= ' '.escapeshellarg($temp); //input
-
-        exec($cmd, $output, $error);
-        @unlink($temp);
-
-        if ($error != 0){
-            if($conf['debug']){
-                dbglog(join("\n",$output),'graphviz command failed: '.$cmd);
-            }
-            return false;
-        }
-        return true;
-    }
-
+  function dump_array($a) { print '<pre>'.print_r($a, true).'</pre>'; }
 }
 
 
