@@ -81,78 +81,64 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
         return $return;
     }
 
-    /**
-     * Create output
-     *
-     * @todo latex support?
-     */
-    function render($format, &$R, $data) {
-      global $conf;
-      $imageType = 'png'; $imageExt = '.'.$imageType;
-      $mapID=md5($data['data']);
-      # DILEMA: what's better to use as a path to store the generated graphviz images: 
-      # the "chachedir" folder or the "mediadir"
-      # $file_base_name = getcachename(join('x',array_values($data)),'_graphviz');
-      $file_base_name = $conf['mediadir'].'/graphviz_'.$mapID;
+  /**
+   * Create output
+   *
+   * @todo latex support?
+   */
+  function render($format, &$R, $data) {
+    global $conf;
+    $imageType = 'png'; $imageExt = '.'.$imageType;
+    $mapID=md5($data['data']);
+    # DILEMA: what's better to use as a path to store the generated graphviz images:
+    # the "chachedir" folder or the "mediadir"
+    # $file_base_name = getcachename(join('x',array_values($data)),'_graphviz');
+    $file_base_name = $conf['mediadir'].'/graphviz_'.$mapID;
 
-      if (!(file_exists($fname.$imageExt) or file_exists($file_base_name.'.map'))) {
-        io_saveFile($file_base_name.'.dot',$data['data']);
-        $dotExe=$this->getConf('path');
-        $cmdDoMap = $dotExe.' -Tcmapx '.escapeshellarg($file_base_name.'.dot').' '.' -o'.escapeshellarg($file_base_name.'.map');
-        $cmdDoImg = $dotExe.' -T'.$imageType.' '.escapeshellarg($file_base_name.'.dot').' -o'.escapeshellarg($file_base_name.$imageExt);
-        $ret = `{$cmdDoMap}`;
-        $ret = `{$cmdDoImg}`;
-      }
-      #$this->dump_array($conf);
-      if ($format == 'xhtml') {
-        // display the image tag
-        $src=dirname($_SERVER['PHP_SELF']).substr($file_base_name.$imageExt, strpos($file_base_name.$imageExt, '/data'));
-        $R->doc .= '<img src="'.$src.'" class="media'.$data['align'].'" alt=""';
-        if($data['width'])  $R->doc .= ' width="'.$data['width'].'"';
-        if($data['height']) $R->doc .= ' height="'.$data['height'].'"';
-        if($data['align'] == 'right') $ret .= ' align="right"';
-        if($data['align'] == 'left')  $ret .= ' align="left"';
-        $R->doc .= " usemap=\"#$mapID\"";
-        $R->doc .= '/>';
+    if (!(file_exists($fname.$imageExt) or file_exists($file_base_name.'.map'))) {
+      # TODO: use http://chart.apis.google.com/chart if dot is not installed locally
+//         $pass = array(
+//             'cht' => 'gv:'.$data['layout'],
+//             'chl' => $data['data'],
+//         );
+//         if($data['width'] && $data['height']){
+//              $pass['chs'] = $data['width'].'x'.$data['height'];
+//         }
+//
+//         $img = 'http://chart.apis.google.com/chart?'.buildURLparams($pass,'&');
+//         $img = ml($img,array('w'=>$data['width'],'h'=>$data['height']));
 
-        // display the map tag
-        @$map = file_get_contents($file_base_name.'.map');
-        $map=preg_replace("#<ma(.*)>#"," ",$map);
-        $map=str_replace("</map>","",$map);
-        $R->doc .= "<map name=\"$mapID\">{$map}</map>";
-        return true;
-      } elseif ($format == 'odt') {
-        $R->_odtAddImage($file_base_name.$imageExt,$data['width'],$data['height'],$data['align']);
-        return true;
-      }
-      return false;
+      io_saveFile($file_base_name.'.dot',$data['data']);
+      $dotExe=$this->getConf('path');
+      $cmdDoMap = $dotExe.' -Tcmapx '.escapeshellarg($file_base_name.'.dot').' -o'.escapeshellarg($file_base_name.'.map');
+      $cmdDoImg = $dotExe.' -T'.$imageType.' '.escapeshellarg($file_base_name.'.dot').' -o'.escapeshellarg($file_base_name.$imageExt);
+      $ret = `{$cmdDoMap}`;
+      $ret = `{$cmdDoImg}`;
     }
+    #$this->dump_array($conf);
+    if ($format == 'xhtml') {
+      // display the image tag
+      $src=dirname($_SERVER['PHP_SELF']).substr($file_base_name.$imageExt, strpos($file_base_name.$imageExt, '/data'));
+      $R->doc .= '<img src="'.$src.'" class="media'.$data['align'].'" alt=""';
+      if($data['width'])  $R->doc .= ' width="'.$data['width'].'"';
+      if($data['height']) $R->doc .= ' height="'.$data['height'].'"';
+      if($data['align'] == 'right') $ret .= ' align="right"';
+      if($data['align'] == 'left')  $ret .= ' align="left"';
+      $R->doc .= " usemap=\"#$mapID\"";
+      $R->doc .= '/>';
 
-    /**
-     * Build the image URL using either our own generator or
-     * the Google Chart API
-     */
-    function _imgurl($data){
-        #if($this->getConf('path')){
-        if(1 == 2){
-            // run graphviz on our own server
-            $img = DOKU_BASE.'lib/plugins/graphviz/img.php?'.buildURLparams($data,'&');
-        }else{
-            // go through google
-            $pass = array(
-                'cht' => 'gv:'.$data['layout'],
-                'chl' => $data['data'],
-            );
-            if($data['width'] && $data['height']){
-                 $pass['chs'] = $data['width'].'x'.$data['height'];
-            }
-
-            $img = 'http://chart.apis.google.com/chart?'.buildURLparams($pass,'&');
-            $img = ml($img,array('w'=>$data['width'],'h'=>$data['height']));
-            #$this->echox($img);
-        }
-        return $img;
+      // display the map tag
+      @$map = file_get_contents($file_base_name.'.map');
+      $map=preg_replace("#<ma(.*)>#"," ",$map);
+      $map=str_replace("</map>","",$map);
+      $R->doc .= "<map name=\"$mapID\">{$map}</map>";
+      return true;
+    } elseif ($format == 'odt') {
+      $R->_odtAddImage($file_base_name.$imageExt,$data['width'],$data['height'],$data['align']);
+      return true;
     }
+    return false;
+  }
 
   function echox($msg) {
     $logFile="/tmp/dokuwiki_graphviz";
