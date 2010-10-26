@@ -87,27 +87,22 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
      * @todo latex support?
      */
     function render($format, &$R, $data) {
-//       $R->doc .= '<pre>'.print_r($data, true).'</pre>';
-//       $R->doc .= '<pre>'.md5($data['data']).'</pre>';
-//       $R->doc .= '<pre>'.join('x',array_values($data)).'</pre>';
-//       $R->doc .= '<pre>'.getcachename(join('x',array_values($data)),'graphviz.png').'</pre>';
+      global $conf;
       $imageType = 'png'; $imageExt = '.'.$imageType;
-      $file_base_name = getcachename(join('x',array_values($data)),'_graphviz');
       $mapID=md5($data['data']);
+      # DILEMA: what's better to use as a path to store the generated graphviz images: the "chachedir" folder or the "mediadir"
+      # $file_base_name = getcachename(join('x',array_values($data)),'_graphviz');
+      $file_base_name = $conf['mediadir'].'/graphviz_'.$mapID;
 
-      #$R->doc .= '<pre>'.$file_base_name.'</pre>';
-      #$this->dump_array(php_uname());
       if (!(file_exists($fname.$imageExt) or file_exists($file_base_name.'.map'))) {
         io_saveFile($file_base_name.'.dot',$data['data']);
         $dotExe=$this->getConf('path');
         $cmdDoMap = $dotExe.' -Tcmapx '.escapeshellarg($file_base_name.'.dot').' '.' -o'.escapeshellarg($file_base_name.'.map');
         $cmdDoImg = $dotExe.' -T'.$imageType.' '.escapeshellarg($file_base_name.'.dot').' -o'.escapeshellarg($file_base_name.$imageExt);
-        #$this->dump_array($cmdDoMap);
-        #$this->dump_array($cmdDoImg);
         $ret = `{$cmdDoMap}`;
         $ret = `{$cmdDoImg}`;
       }
-
+      #$this->dump_array($conf);
       if ($format == 'xhtml') {
         // display the image tag
         $src=dirname($_SERVER['PHP_SELF']).substr($file_base_name.$imageExt, strpos($file_base_name.$imageExt, '/data'));
@@ -125,8 +120,8 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
         $map=str_replace("</map>","",$map);
         $R->doc .= "<map name=\"$mapID\">{$map}</map>";
         return true;
-      } elseif($format == 'odt') {
-        $R->_odtAddImage($fname.$imageExt,$data['width'],$data['height'],$data['align']);
+      } elseif ($format == 'odt') {
+        $R->_odtAddImage($file_base_name.$imageExt,$data['width'],$data['height'],$data['align']);
         return true;
       }
       return false;
