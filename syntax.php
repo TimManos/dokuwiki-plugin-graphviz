@@ -90,7 +90,8 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
       global $conf;
       $imageType = 'png'; $imageExt = '.'.$imageType;
       $mapID=md5($data['data']);
-      # DILEMA: what's better to use as a path to store the generated graphviz images: the "chachedir" folder or the "mediadir"
+      # DILEMA: what's better to use as a path to store the generated graphviz images: 
+      # the "chachedir" folder or the "mediadir"
       # $file_base_name = getcachename(join('x',array_values($data)),'_graphviz');
       $file_base_name = $conf['mediadir'].'/graphviz_'.$mapID;
 
