@@ -140,13 +140,15 @@ class syntax_plugin_graphviz extends DokuWiki_Syntax_Plugin {
     return false;
   }
 
-  function echox($msg) {
-    $logFile="/tmp/dokuwiki_graphviz";
-    error_log(strftime('%Y-%m-%d %H:%M%S')." ".$msg, 3, $logFile);
-  }
+  /**
+   * Debugging function
+   *
+   */
+  function echox($msg) { $logFile="/tmp/dokuwiki_graphviz"; error_log(strftime('%Y-%m-%d %H:%M%S')." ".$msg, 3, $logFile); }
 
+  /**
+   * Debugging function
+   *
+   */
   function dump_array($a) { print '<pre>'.print_r($a, true).'</pre>'; }
 }
-
-
-
